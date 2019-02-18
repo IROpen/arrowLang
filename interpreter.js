@@ -34,15 +34,37 @@ itp = {
 		qu = qu.split(' ');
 		let pbaz = [];
 		let st = [];
+		let lambdaStack = [];
 		for (let i=0;i<qu.length;i++){
 			if (qu[i]===')'){
 				let ar = [];
 				let pos = i;
-				while (st[pos] !== '(') pos--;
+				while (st[pos] !== '(' && st[pos] !== '(=>') pos--;
 				for (let j=pos+1;j<st.length;j++) ar.push(st[j]);
 				let jav = this.parseInner(ar);
+				if (st[pos] === '(=>'){
+					let lo = lambdaStack.pop();
+					jav = `( (${lo.map((x)=>this.dict.get(x)).join(',')}) => ( ${jav} ) )`;
+				}
 				st.length = pos;
 				st.push({task:"I",value:jav});
+			}
+			else if (qu[i] === '=>'){
+				let ar = [];
+				let pos = i;
+				while (st[pos] !== '(') pos--;
+				let lo = [];
+				for (let j=pos+1;j<st.length;j++) {
+					let v = st[j];
+					if (v[0]!=='#'){
+						throw "syntax error";
+					}
+					this.dict.set(v,"l"+lambdaStack.length+'_'+(j-pos+1));
+					lo.push(v);
+				}
+				st.length = pos;
+				lambdaStack.push(lo);
+				st.push('(=>');
 			}
 			else{
 				st.push(qu[i]);
@@ -156,6 +178,7 @@ itp.jsRule('agar # dorost bood # vagarna #',(x,y,z)=>(x?y:z),x=>`(${x[0]}?${x[1]
 itp.jsRule('# ra chap kon',(x)=>new IoMonad(()=>console.log(x)));
 itp.jsRule('# sepas #',(x,y) => x.then(y));
 itp.jsRule('barabarie # ba #',(x,y)=>(x===y));
+itp.jsRule('# |> #',(x,y)=>(y(x)));
 
 evalc(`enviroment = (o) => {
   if (o instanceof IoMonad) o.run();
