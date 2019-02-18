@@ -1,0 +1,19 @@
+{
+  "name": "farsidefine",
+  "version": "0.1.0",
+  "description": "a farsi programming language",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "nlp",
+    "program",
+    "language"
+  ],
+  "author": "IROpen",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "nearley": "^2.16.0"
+  }
+}
