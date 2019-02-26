@@ -1,3 +1,6 @@
+const IMU = require('immutable');
+
+
 function evalc(x){
 	console.log(x);
 	eval(x);
@@ -31,7 +34,8 @@ itp = {
 	dict : new Map([]),
 
 	parse : function (qu){
-		qu = qu.split(' ');
+		qu = qu.split(/[ \n]+/g);
+		//console.log(qu);
 		let pbaz = [];
 		let st = [];
 		let lambdaStack = [];
@@ -44,7 +48,7 @@ itp = {
 				let jav = this.parseInner(ar);
 				if (st[pos] === '(=>'){
 					let lo = lambdaStack.pop();
-					jav = `( (${lo.map((x)=>this.dict.get(x)).join(',')}) => ( ${jav} ) )`;
+					jav = `( ${lo.map((x)=>this.dict.get(x)).join(' => ')} => ( ${jav} ) )`;
 				}
 				st.length = pos;
 				st.push({task:"I",value:jav});
@@ -86,22 +90,26 @@ itp = {
 			var voroodi = [],voroodiBackup = [];
 
 			let bctr = (h1,h2,rul) => {
-				while (h2<rul.length && rul[h2]!='#'){
-					if (h1==r || qu[h1]!=rul[h2]) return 0;
+				while (h2<rul.length && rul[h2][0]!=='#'){
+					if (h1===r || qu[h1]!==rul[h2]) return 0;
 					h1++;h2++;
 				}
-				if (h1==r && h2==rul.length){
+				if (h1===r && h2===rul.length){
 					voroodiBackup = Object.assign([],voroodi);
 					return 1;
 				}
-				if (h1 == r || h2 == rul.length){
+				if (h1 === r || h2 === rul.length){
 					return 0;
 				}
-				if (rul[h2]=='#'){
+				if (rul[h2][0]==='#'){
+					let badWord = rul[h2].slice(1).split(',');
 					let res=0;
 					for (let i=h1+1;i<=r;i++){
+						if (badWord.find((x)=>x===qu[i-1])){
+							return res;
+						}
 					let x=calc(h1,i);
-					if (x == undefined) continue;
+					if (x === undefined) continue;
 					voroodi.push(x);
 					//console.log(voroodi);
 					res += bctr(i,h2+1,rul);
@@ -171,19 +179,48 @@ itp = {
 	},
 };
 
-itp.jsRule('jam # ba #',(x,y)=>x+y);
-itp.jsRule('zarb # dar #',(x,y)=>x*y);
-itp.jsRule('manfi #',x=>-x);
-itp.jsRule('agar # dorost bood # vagarna #',(x,y,z)=>(x?y:z),x=>`(${x[0]}?${x[1]}:${x[2]})`);
-itp.jsRule('# ra chap kon',(x)=>new IoMonad(()=>console.log(x)));
-itp.jsRule('# sepas #',(x,y) => x.then(y));
-itp.jsRule('barabarie # ba #',(x,y)=>(x===y));
-itp.jsRule('# |> #',(x,y)=>(y(x)));
 
 evalc(`enviroment = (o) => {
   if (o instanceof IoMonad) o.run();
   else throw 'invalid command';
-}`);
+};
+to_func = (f) => (typeof f == "function"?f:(f instanceof IMU.List || f instanceof IMU.Map ? ( (a)=>f.get(a) ) : ( (a)=>f[a] ) ) ) ;
+`);
+
+itp.jsRule('jam # ba #',(x,y)=>x+y);
+itp.jsRule('zarb # dar #',(x,y)=>x*y);
+itp.jsRule('manfi #',x=>-x);
+itp.jsRule('agar # dorost bood # vagarna #',(x,y,z)=>(x?y:z),x=>`(${x[0]}?${x[1]}:${x[2]})`);
+itp.jsRule('# ra chap kon',(x)=>new IoMonad(()=>console.log(""+x)));
+itp.jsRule('# sepas #',(x,y) => x.then(y));
+itp.jsRule('barabarie # ba #',(x,y)=>(x===y));
+itp.jsRule('# |> #',(x,y)=>(to_func(y)(x)));
+itp.jsRule('[ # .. # ]',(a,b) => IMU.Range(a,b+1).toList());
+itp.jsRule('tabdil list # ba tabe #',(x,f) => x.map(to_func(f)));
+itp.jsRule('tajmie list # ba tabe #',(x,f) => x.reduce((a,b)=>to_func(to_func(f)(a))(b)));
+itp.jsRule('# [ # ]',(x,y)=>x.get(y));
+itp.jsRule('# [ # ]:= #',(x,y,z)=>x.set(y,z));
+itp.jsRule('tajmie list # ba tabe # ba paye #',(a,f,p)=>{
+	a.forEach((x)=>{ p=f(p)(x) });
+	return p;
+});
+itp.jsRule('# :: #::',(x,y)=>x.push(y));
+
+itp.jsRule('{ # : # }',(x,y)=>IMU.Map().set(x,y));
+
+itp.jsRule('tarkib # ba #',(x,y)=>{
+	if (x instanceof IMU.Map === y instanceof IMU.Map){
+		return x.merge(y);
+	}
+	y.forEach((val,key)=>{
+		x = x.set(key,val);
+	});
+	return x;
+});
+
+//jad a :=> tabdil list [ 1 .. 5 ] ba tabe ( #x => [ 1 .. 5 ] )
+//jad b :=> tajmie list [ 0 .. 4 ] ba tabe ( #jad #x => #jad [ #x ] [ #x ]:= 0 ) ba paye jad a
+
 
 var readline = require('readline');
 var rl = readline.createInterface({
@@ -212,7 +249,7 @@ rl.on('line', function(line){
 		cmd  = 'enviroment('+itp.parse(asn[0])+')';
     }
     evalc(cmd);
-})
+});
 
 class IoMonad {
 	run(){
