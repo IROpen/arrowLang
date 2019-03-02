@@ -1,5 +1,5 @@
 const IMU = require('immutable');
-
+const EP = require('./earley-parser');
 
 function evalc(x){
 	console.log(x);
@@ -8,10 +8,23 @@ function evalc(x){
 
 itp = {
     rules : new Map([]),
+    keywords : new Map([]),
+    grammarRule: ['start -> root','root -> base'],
     ruleCount : 0,
+	ruleFuncs : [],
 	registerRule : function (pat,customrule) {
-		//console.log(this);
 		pat = pat.split(' ');
+		this.grammarRule.push("root -> r"+this.ruleCount);
+		this.grammarRule.push("r"+this.ruleCount+" -> " + pat.map((x)=>{
+		    if (x[0]==='#'){
+		        return "root";
+            }
+		    if (!this.keywords.has(x)){
+		        let nam = "k"+this.keywords.size;
+		        this.keywords.set(x,nam);
+            }
+		    return this.keywords.get(x);
+        }).join(' '));
 		let key = pat.find((x) => x != '#');
 		let ar = this.rules.get(key);
 		if (!ar){
@@ -23,6 +36,10 @@ itp = {
 		let obj ={pat,nam};
 		if (customrule != undefined){
 			obj.customRule = customrule;
+			this.ruleFuncs.push(customrule);
+		}
+		else{
+			this.ruleFuncs.push(ar=>`${nam}(${ar.join(',')})`);
 		}
 		ar.push(obj);
 		return nam;
@@ -35,12 +52,17 @@ itp = {
 
 	parse : function (qu){
 		qu = qu.split(/[ \n]+/g);
-		//console.log(qu);
 		let pbaz = [];
 		let st = [];
 		let lambdaStack = [];
 		for (let i=0;i<qu.length;i++){
-			if (qu[i]===')'){
+			if (!isNaN(qu[i])){
+				st.push({task:"num",value:Number(qu[i])});
+			}
+			else if (qu[i][0]==='#'){
+				st.push({task:"var",value:qu[i]});
+			}
+			else if (qu[i]===')'){
 				let ar = [];
 				let pos = i;
 				while (st[pos] !== '(' && st[pos] !== '(=>') pos--;
@@ -48,10 +70,13 @@ itp = {
 				let jav = this.parseInner(ar);
 				if (st[pos] === '(=>'){
 					let lo = lambdaStack.pop();
-					jav = `( ${lo.map((x)=>this.dict.get(x)).join(' => ')} => ( ${jav} ) )`;
+					jav = {task:"lambda",vars:lo,value:jav};
+				}
+				else{
+					jav = {task:"tree",value:jav};
 				}
 				st.length = pos;
-				st.push({task:"I",value:jav});
+				st.push(jav);
 			}
 			else if (qu[i] === '=>'){
 				let ar = [];
@@ -60,11 +85,11 @@ itp = {
 				let lo = [];
 				for (let j=pos+1;j<st.length;j++) {
 					let v = st[j];
-					if (v[0]!=='#'){
+					if (v.task !== "var"){
 						throw "syntax error";
 					}
-					this.dict.set(v,"l"+lambdaStack.length+'_'+(j-pos+1));
-					lo.push(v);
+					this.dict.set(v.value,"l"+lambdaStack.length+'_'+(j-pos+1));
+					lo.push(v.value);
 				}
 				st.length = pos;
 				lambdaStack.push(lo);
@@ -74,109 +99,63 @@ itp = {
 				st.push(qu[i]);
 			}
 		}
-		return this.parseInner(st);
+		let mainTree = this.parseInner(st)[0];
+		let rf = this.ruleFuncs;
+		let vardic = this.dict;
+		let treeToJS = function f(tree){
+			if (tree.subtrees == undefined){
+				return tree;
+			}
+			if (tree.subtrees.length === 0){
+				if (tree.value.task == undefined){
+					return "key";
+				}
+				if (tree.value.task === "lambda"){
+					let jsized = f(tree.value.value[0]);
+					return `((${tree.value.vars.map(x=>vardic.get(x)).join(',')}) => ${jsized})`;
+				}
+				if (tree.value.task === "tree"){
+					return f(tree.value.value[0]);
+				}
+				if (tree.value.task === "num"){
+					return ""+tree.value.value;
+				}
+				if (tree.value.task === "var"){
+					return vardic.get(tree.value.value);
+				}
+			}
+			let childs = tree.subtrees.map(f).filter((x)=>x!=='key');
+			if (/^r[0-9]+$/.test(tree.root)){
+				return rf[tree.root.substr(1)](childs);
+			}
+			return childs.join(' ');
+		};
+		return treeToJS(mainTree);
 	},
-	parseInner : function (qu) {
-		let n = qu.length;
-		let dp = [],calced = [];
-		for(let i=0;i<n;i++){
-			dp[i]=[];
-			calced[i]=[];
-		}
-		let calc = (l,r) => {
-
-
-
-			var voroodi = [],voroodiBackup = [];
-
-			let bctr = (h1,h2,rul) => {
-				while (h2<rul.length && rul[h2][0]!=='#'){
-					if (h1===r || qu[h1]!==rul[h2]) return 0;
-					h1++;h2++;
-				}
-				if (h1===r && h2===rul.length){
-					voroodiBackup = Object.assign([],voroodi);
-					return 1;
-				}
-				if (h1 === r || h2 === rul.length){
-					return 0;
-				}
-				if (rul[h2][0]==='#'){
-					let badWord = rul[h2].slice(1).split(',');
-					let res=0;
-					for (let i=h1+1;i<=r;i++){
-						if (badWord.find((x)=>x===qu[i-1])){
-							return res;
-						}
-					let x=calc(h1,i);
-					if (x === undefined) continue;
-					voroodi.push(x);
-					//console.log(voroodi);
-					res += bctr(i,h2+1,rul);
-					voroodi.pop();
-					if (res>1) return res;
-					}
-					return res;
-				}
-
-				return 0;
-			};
-
-			if (calced[l][r]){
-				return dp[l][r];
-			}
-			calced[l][r]=1;
-			if (l+1==r){
-				if (qu[l].task !== undefined){
-					if (qu[l].task === "I"){
-						dp[l][r]=qu[l].value;
-					}
-				}
-				else if (this.dict.get(qu[l])){
-					dp[l][r]=this.dict.get(qu[l]);
-				}
-				else if (!isNaN(qu[l])){
-					dp[l][r]=qu[l];
-				}
-				return dp[l][r];
-			}
-			//console.log(qu,l,qu[l]);
-			let rr = this.rules.get(qu[l]);
-			if (!rr) rr=[];
-			for (let i = 0; i < rr.length; i++){
-				let t = bctr(l,0,rr[i].pat);
-				if (t){
-					//console.log(voroodiBackup);
-					if (rr[i].customRule == undefined)
-						return dp[l][r]=rr[i].nam+'('+voroodiBackup.join(',')+')';
-					else{
-						return dp[l][r]=rr[i].customRule(voroodiBackup);
-					}
-				}
-			}
-			for (let p = l+1;p<r;p++){
-			let c = calc(l,p);
-			if (c==undefined) continue;
-			voroodi.push(c);
-			let rr = this.rules.get(qu[p]);
-			if (!rr) rr=[];
-			for (let i = 0; i < rr.length; i++){
-				let t = bctr(p,1,rr[i].pat);
-				if (t){
-				//console.log(voroodiBackup);
-				return dp[l][r]=rr[i].nam+'('+voroodiBackup.join(',')+')';
-				}
-			}
-			voroodi.pop();
+    parseInner: function (qu) {
+        let grammar = new EP.Grammar(this.grammarRule);
+        grammar.terminalSymbols(token => token);
+        let tokener = token => {
+            if (token.task){
+                return 'base';
+            }
+            if (!this.keywords.has(token)){
+                throw token+" is not defined";
+            }
+            return this.keywords.get(token);
+        };
+        let text = qu.map(tokener);
+        let chart = EP.parse(text, grammar, "start");
+        let trees = chart.getFinishedRoot("start").traverse();
+        let attachToTree = function f(tree) {
+        	tree.subtrees.forEach(f);
+        	if (tree.left+1 === tree.right){
+        		tree.value = qu[tree.left];
 			}
 		};
-		let res = calc(0,n);
-		//console.log(dp);
-		return res;
-    },
-	parseInnerFunction : function (text,varlist){
-
-	},
+        trees.forEach(attachToTree);
+        return trees;
+    }
 };
 
 
