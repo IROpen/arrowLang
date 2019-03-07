@@ -19,7 +19,7 @@ itp = {
     ruleFuncs : [],
 	registerRule : function (pat,customrule) {
 		evalc(`pat[${this.ruleFuncs.length}] = "${pat}"`);
-		pat = pat.split(' ');
+		pat = pat.split(/\s/g);
 		this.grammarRule.push("root -> r"+this.ruleFuncs.length);
 		this.grammarRule.push("r"+this.ruleFuncs.length+" -> " + pat.map((x)=>{
 		    if (x[0]==='%'){
@@ -196,11 +196,12 @@ itp = {
         return trees;
 	},
 	eval: function (line){
+		if (/^\s*$/.test(line)) return "";
 		line = stdize(line);
 		let asn = line.split(' :=> ');
 		let cmd;
 		if (asn.length == 2){
-			let pat = asn[0].split(' ');
+			let pat = asn[0].split(/\s/g).filter(x=>x!=='');
 			let varCount = 0;
 			pat.forEach(x=>{
 					if (x[0]=='%'){
@@ -216,16 +217,16 @@ itp = {
 			if (asn[0].match(/^\s*=>/) != null){
 				let makan = asn[0].split(' ').filter(x=>x!='' && x!='=>')[0];
 				let lib = require(makan);
-				evalc(` { let lib = require("${makan}"); `);
+				cmd += ` { let lib = require("${makan}"); \n`;
 				lib.arrow.pat.forEach((x,i)=>{
-					itp.jsRule(x,`lib.arrow.f[${i}]`);
+					itp.jsRule(x,`lib.arrow.f[${i}]; \n`);
 				});
 				cmd = ' } ';
 			}
 			else
-				cmd  = 'enviroment('+itp.parse(asn[0])+')';
+				cmd  = 'enviroment('+itp.parse(asn[0])+');';
 		}
-		evalc(cmd);
+		return cmd;
 	}
 };
 
@@ -291,13 +292,6 @@ itp.jsRule('tarkib % ba %',(x,y)=>{
 //jad a :=> tabdil list [ 1 .. 5 ] ba tabe ( %x => [ 1 .. 5 ] )
 //jad b :=> tajmie list [ 0 .. 4 ] ba tabe ( %jad %x => %jad [ %x ] [ %x ]:= 0 ) ba paye jad a
 
-
-var readline = require('readline');
-var rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  terminal: false
-});
 
 function stdize(str){
 	return str.replace(/[٠١٢٣٤٥٦٧٨٩]/g, function(d) {
