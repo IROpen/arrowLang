@@ -6,12 +6,6 @@ function evalc(x){
 	//eval(x);
 }
 
-evalc(`
-module.exports.arrow = {f:[],pat:[]};
-var f = module.exports.arrow.f;
-var pat = module.exports.arrow.pat;
-`);
-
 itp = {
     rules : new Map([]),
     keywords : new Map([]),
@@ -231,33 +225,7 @@ itp = {
 };
 
 
-evalc(`enviroment = (o) => {
-  if (typeof o.run == "function") o.run();
-  else console.log(o);
-};
-to_func = (f) => (typeof f == "function"?f:(f instanceof IMU.List || f instanceof IMU.Map ? ( (a)=>f.get(a) ) : ( (a)=>f[a] ) ) ) ;
-`);
-
-evalc(`
-
-class IoMonad {
-	run(){
-		this.innerF();
-	}
-	then(io){
-		return new IoMonad(()=>{this.innerF();return io.innerF(); } );
-	}
-	bind(fx_io){
-		return new IoMonad(()=>{
-			let x = this.innerF();
-			return fx_io(x).innerF();
-		});
-	}
-	constructor(f){ this.innerF = f; }
-}
-
-`)
-
+/*
 itp.jsRule('jam % ba %',(x,y)=>x+y);
 itp.jsRule('zarb % dar %',(x,y)=>x*y);
 itp.jsRule('manfi %',x=>-x);
@@ -288,7 +256,7 @@ itp.jsRule('tarkib % ba %',(x,y)=>{
 	});
 	return x;
 });
-
+*/
 //jad a :=> tabdil list [ 1 .. 5 ] ba tabe ( %x => [ 1 .. 5 ] )
 //jad b :=> tajmie list [ 0 .. 4 ] ba tabe ( %jad %x => %jad [ %x ] [ %x ]:= 0 ) ba paye jad a
 

@@ -4,14 +4,17 @@ const itp = require('../interpreter');
 const program = require('commander');
 const { promisify } = require('util');
 const readFile = promisify(require('fs').readFile);
-
+const writeFile = promisify(require('fs').writeFile);
 
 var scriptFile = "";
 
 program
-    .version('0.2.0')
+    .version(require('../package').version)
     .arguments('<file>').action(file=>(scriptFile=file))
+    .option('--env-path <path>','path to env.js file')
     .parse(process.argv);
+
+program.envPath = program.envPath || "arrowLang/std/env";
 
 if (scriptFile !== ""){
     if (scriptFile.substr(-4) !== '.far'){
@@ -39,12 +42,21 @@ if (scriptFile !== ""){
             return ar;
         }
 	    data = spliter(data.toString());
-	    //console.log(data);
+        //console.log(data);
+        let outputFile = `
+            const { enviroment , IoMonad } = require('${program.envPath}');
+            module.exports = {f:[],pat:[]};
+            var f = module.exports.f;
+            var pat = module.exports.pat;
+        `;
 	    for (let i = 0; i < data.length ; i++){
 		//console.log(data[i]);
             let res = itp.eval(data[i]);
-            console.log(res);
-	    }
+            outputFile += res + '\n';
+        }
+        scriptFile = scriptFile.substring(0,scriptFile.length - 3);
+        scriptFile+="js";
+        writeFile(scriptFile,outputFile);
     });
     
 }
