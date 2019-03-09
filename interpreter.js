@@ -12,7 +12,6 @@ itp = {
     grammarRule: ['start -> root','root -> base'],
     ruleFuncs : [],
 	registerRule : function (pat,customrule) {
-		evalc(`pat[${this.ruleFuncs.length}] = "${pat}"`);
 		pat = pat.split(/\s/g);
 		this.grammarRule.push("root -> r"+this.ruleFuncs.length);
 		this.grammarRule.push("r"+this.ruleFuncs.length+" -> " + pat.map((x)=>{
@@ -44,8 +43,10 @@ itp = {
 		return nam;
 	},
 	jsRule : function (pat,fun,customRule) {
-		let nam = this.registerRule(pat,customRule);
-		evalc(`${nam} = ${fun}`);
+		let cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
+		let nam = this.registerRule(pat,customRule);		
+		cmd += `${nam} = ${fun}`;
+		return cmd;
 	},
 	dict : new Map([]),
 
@@ -204,18 +205,19 @@ itp = {
 					}
 				});
 				pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
+				cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
 				let nam = itp.registerRule(pat);
-				cmd = `${nam} = (${(new Array(varCount)).fill().map((x,i)=>'v'+i).join(',')}) => ${itp.parse(asn[1])};`;
+				cmd += `${nam} = (${(new Array(varCount)).fill().map((x,i)=>'v'+i).join(',')}) => ${itp.parse(asn[1])};`;
 		}
 		else{
 			if (asn[0].match(/^\s*=>/) != null){
 				let makan = asn[0].split(' ').filter(x=>x!='' && x!='=>')[0];
 				let lib = require(makan);
-				cmd += ` { let lib = require("${makan}"); \n`;
+				cmd = ` { let lib = require("${makan}"); \n`;
 				lib.arrow.pat.forEach((x,i)=>{
-					itp.jsRule(x,`lib.arrow.f[${i}]; \n`);
+					cmd += itp.jsRule(x,`lib.arrow.f[${i}]; \n`);
 				});
-				cmd = ' } ';
+				cmd += ' } ';
 			}
 			else
 				cmd  = 'enviroment('+itp.parse(asn[0])+');';
@@ -267,23 +269,6 @@ function stdize(str){
 	}).replace(/[۰۱۲۳۴۵۶۷۸۹]/g, function(d) {
 		return d.charCodeAt(0) - 1776; // Convert Persian numbers
 	}).replace(/٪/g,'%');
-}
-
-
-class IoMonad {
-	run(){
-		this.innerF();
-	}
-	then(io){
-		return new IoMonad(()=>{this.innerF();return io.innerF(); } );
-	}
-	bind(fx_io){
-		return new IoMonad(()=>{
-			let x = this.innerF();
-			return fx_io(x).innerF();
-		});
-	}
-	constructor(f){ this.innerF = f; }
 }
 
 module.exports = itp;
