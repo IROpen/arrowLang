@@ -45,9 +45,11 @@ if (scriptFile !== ""){
         //console.log(data);
         let outputFile = `
             const { enviroment , IoMonad } = require('${program.envPath}');
-            module.exports.arrow = {f:[],pat:[]};
+            module.exports.arrow = {f:[],pat:[],typ:[]};
             var f = module.exports.arrow.f;
             var pat = module.exports.arrow.pat;
+            var typ = module.exports.arrow.typ;
+            
         `;
 	    for (let i = 0; i < data.length ; i++){
 		//console.log(data[i]);

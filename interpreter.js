@@ -80,7 +80,7 @@ itp = {
 					return vardic.get(tree.value.value);
 				}
 				if (tree.value.task === "plain"){
-					return tree.value.value;
+					return `(${tree.value.value})`;
 				}
 			}
 			let childs = tree.subtrees.map(f).filter((x)=>x!=='key');
@@ -97,7 +97,7 @@ itp = {
 					while (st[pos] !== '($') pos--;
 					for (let j=pos+1;j<st.length;j++) ar.push(st[j]);
 					//console.log(ar);
-					let jsText = ar.map((x)=>(x.task == 'tree'? treeToJS(x.value[0]) :x)).join(' ');
+					let jsText = ar.map((x)=>(x.task == 'tree'? `(${treeToJS(x.value[0])})` :x)).join(' ');
 					st.length = pos;
 					st.push({task:"plain",value:jsText});
 					shouldPlain = 0;
@@ -191,36 +191,61 @@ itp = {
         return trees;
 	},
 	eval: function (line){
+		let paterner = txt => x => txt.replace(/v[0-9]+/g,(s)=>x[s.substr(1)])
 		if (/^\s*$/.test(line)) return "";
 		line = stdize(line);
-		let asn = line.split(' :=> ');
 		let cmd;
-		if (asn.length == 2){
+		if (line.match(' :=> ') !== null){
+			let asn = line.split(' :=> ');
 			let pat = asn[0].split(/\s/g).filter(x=>x!=='');
 			let varCount = 0;
 			pat.forEach(x=>{
-					if (x[0]=='%'){
-						itp.dict.set(x,'v'+varCount);
-						varCount++;
-					}
-				});
-				pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
-				cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
-				let nam = itp.registerRule(pat);
-				cmd += `${nam} = (${(new Array(varCount)).fill().map((x,i)=>'v'+i).join(',')}) => ${itp.parse(asn[1])};`;
+				if (x[0]=='%'){
+					itp.dict.set(x,'v'+varCount);
+					varCount++;
+				}
+			});
+			pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
+			cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
+			let nam = itp.registerRule(pat);
+			cmd += `${nam} = (${(new Array(varCount)).fill().map((x,i)=>'v'+i).join(',')}) => ${itp.parse(asn[1])};`;
+		}
+		else if (line.match(' #=> ') !== null){
+			let asn = line.split(' #=> ');
+			let pat = asn[0].split(/\s/g).filter(x=>x!=='');
+			let varCount = 0;
+			pat.forEach(x=>{
+				if (x[0]=='%'){
+					itp.dict.set(x,'v'+varCount);
+					varCount++;
+				}
+			});
+			pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
+			cmd = `pat[${this.ruleFuncs.length}] = "${pat}";\n`;
+			cmd += `typ[${this.ruleFuncs.length}] = "inline";\n`;
+			let txt = itp.parse(asn[1]);
+			let nam = itp.registerRule(pat,paterner(txt));
+			cmd += `${nam} = "${txt}";`;
 		}
 		else{
-			if (asn[0].match(/^\s*=>/) != null){
-				let makan = asn[0].split(' ').filter(x=>x!='' && x!='=>')[0];
+			if (line.match(/^\s*=>/) != null){
+				let makan = line.split(' ').filter(x=>x!='' && x!='=>')[0];
 				let lib = require(makan);
 				cmd = ` { let lib = require("${makan}"); \n`;
 				lib.arrow.pat.forEach((x,i)=>{
-					cmd += itp.jsRule(x,`lib.arrow.f[${i}]; \n`);
+					if (lib.arrow.typ[i] == "inline"){
+						cmd += `pat[${this.ruleFuncs.length}] = "${x}";\n`;
+						cmd += `typ[${this.ruleFuncs.length}] = "inline";\n`;
+						let nam = itp.registerRule(x,paterner(lib.arrow.f[i]));
+						cmd += `${nam} = "${lib.arrow.f[i]}";\n`;
+					}
+					else
+						cmd += itp.jsRule(x,`lib.arrow.f[${i}]; \n`);
 				});
 				cmd += ' } ';
 			}
 			else
-				cmd  = 'enviroment('+itp.parse(asn[0])+');';
+				cmd  = 'enviroment('+itp.parse(line)+');';
 		}
 		return cmd;
 	}
