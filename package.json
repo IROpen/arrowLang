@@ -1,5 +1,5 @@
 {
-  "name": "arrowLang",
+  "name": "arrowlang",
   "version": "0.1.0",
   "description": "a functional programming language without keyword",
   "main": "index.js",

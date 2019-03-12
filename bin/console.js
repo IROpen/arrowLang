@@ -14,7 +14,7 @@ program
     .option('--env-path <path>','path to env.js file')
     .parse(process.argv);
 
-program.envPath = program.envPath || "arrowLang/std/env";
+program.envPath = program.envPath || "arrowlang/std/env";
 
 if (scriptFile !== ""){
     if (scriptFile.substr(-4) !== '.far'){
