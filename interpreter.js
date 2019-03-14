@@ -1,5 +1,6 @@
 const IMU = require('immutable');
 const EP = require('./earley-parser');
+const path = require('path');
 
 function evalc(x){
 	console.log(x);
@@ -10,7 +11,8 @@ itp = {
     rules : new Map([]),
     keywords : new Map([]),
     grammarRule: ['start -> root','root -> base'],
-    ruleFuncs : [],
+	ruleFuncs : [],
+	workDir : __dirname,
 	registerRule : function (pat,customrule) {
 		pat = pat.split(/\s/g);
 		this.grammarRule.push("root -> r"+this.ruleFuncs.length);
@@ -230,6 +232,9 @@ itp = {
 		else{
 			if (line.match(/^\s*=>/) != null){
 				let makan = line.split(' ').filter(x=>x!='' && x!='=>')[0];
+				if (makan[0] === '.'){
+					makan = path.join(this.workDir,makan);
+				}
 				let lib = require(makan);
 				cmd = ` { let lib = require("${makan}"); \n`;
 				lib.arrow.pat.forEach((x,i)=>{

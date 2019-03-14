@@ -6,6 +6,7 @@ const { promisify } = require('util');
 const readFile = promisify(require('fs').readFile);
 const writeFile = promisify(require('fs').writeFile);
 const { spawn } = require('child_process');
+const path = require('path');
 var scriptFile = "";
 
 process.on('unhandledRejection', up => { throw up });
@@ -33,6 +34,7 @@ async function main(){
         if (scriptFile.substr(-4) !== '.far'){
             scriptFile += '.far';
         }
+        itp.workDir = path.dirname(path.resolve(scriptFile));
         let data = await readFile(scriptFile);
         //console.log(data.toString());
         let spliter = (s) => {
@@ -40,10 +42,10 @@ async function main(){
             s = s.split('');
             let depth = 0;
             let t = "";
-            s.forEach(element => {
+            s.forEach((element,i) => {
                 if (element === '(' ) depth++;
                 if (element === ')' ) depth--;
-                if (depth === 0 && element === '.'){
+                if (depth === 0 && element === '.' && s[i+1] !== '/'){
                     ar.push(t);
                     t = "";
                 }
