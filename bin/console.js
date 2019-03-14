@@ -1,24 +1,39 @@
 #!/usr/bin/env node
 
 const itp = require('../interpreter');
-const program = require('commander');
+//const program = require('commander');
 const { promisify } = require('util');
 const readFile = promisify(require('fs').readFile);
 const writeFile = promisify(require('fs').writeFile);
 const { spawn } = require('child_process');
 const path = require('path');
-var scriptFile = "";
 
 process.on('unhandledRejection', up => { throw up });
 
-program
+/*program
     .version(require('../package').version)
     .arguments('<file>').action(file=>(scriptFile=file))
     .option('--env-path <path>','path to env.js file')
     .option('--run','run result now')
-    .parse(process.argv);
+    .parse(process.argv);*/
 
-program.envPath = program.envPath || "arrowlang/std/env";
+let program = require('yargs')
+    .scriptName("arrowlang")
+    .usage('$0 <file> [Options]')
+    .alias('r','run')
+    .describe('run the program')
+    .option('env-path', {
+        demandOption: true,
+        default: "arrowlang/std/env",
+        describe: 'locate the env-path',
+        type: 'string'
+    })
+    .help()
+    .argv;
+
+//console.log(program);
+
+let scriptFile = program._[0];
 
 function runAtMe(file){
     //console.log(file);
