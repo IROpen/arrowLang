@@ -24,6 +24,7 @@ function runAtMe(file){
     let prog = spawn('node',[file]);
     process.stdin.pipe(prog.stdin);
     prog.stdout.pipe(process.stdout);
+    prog.on('close',()=>process.exit(0));
     return prog;
 }
 

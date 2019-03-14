@@ -33,5 +33,9 @@ f[8] = "((v0) .then (v1))";
 enviroment((new IoMonad(()=>require('./stdio/main'))));
 pat[9] = "هرگاه % رخ داد %"
 f[9] = (v0,v1) => (new IoMonad(()=>eventSystem.registerEvent(new eventSystem.Event( (v0) , (v1) ) ) ));
-enviroment(f[9](("process.stdin.line"),f[0](5)));
+pat[10] = "یک خط ورودی بگیر"
+f[10] = () => (new IoMonad(require('./stdio/main').getLine));
+pat[11] = "برنامه را ببند"
+f[11] = () => (new IoMonad(()=>process.exit(0)));
+enviroment(((f[10]()) .then (((f[10]()) .then (((f[0](("salam"))) .then (f[11]())))))));
 

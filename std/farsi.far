@@ -9,5 +9,6 @@
 ٪آ سپس ٪ب #=> ($ ($ ٪آ $) .then ($ ٪ب $) $) .
 ($ new IoMonad(()=>require('./stdio/main')) $) .
 هرگاه ٪آ رخ داد ٪ب :=> ($ new IoMonad(()=>eventSystem.registerEvent(new eventSystem.Event( ($ %آ $) , ($ ٪ب $) ) ) ) $) .
-هرگاه ($ "process.stdin.line" $) رخ داد ( ۵ را چاپ کن ) .
-
+یک خط ورودی بگیر :=> ($ new IoMonad(require('./stdio/main').getLine) $) .
+برنامه را ببند :=> ($ new IoMonad(()=>process.exit(0)) $) . 
+یک خط ورودی بگیر سپس یک خط ورودی بگیر سپس ( ($ "salam" $) را چاپ کن ) سپس برنامه را ببند .

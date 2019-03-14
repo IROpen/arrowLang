@@ -8,12 +8,12 @@ exports.IoMonad = class {
 		this.innerF();
 	}
 	then(io){
-		return new exports.IoMonad(()=>{this.innerF();return io.innerF(); } );
+		return new exports.IoMonad(async ()=>{await this.innerF();return await io.innerF(); } );
 	}
 	bind(fx_io){
-		return new exports.IoMonad(()=>{
-			let x = this.innerF();
-			return fx_io(x).innerF();
+		return new exports.IoMonad(async ()=>{
+			let x = await this.innerF();
+			return await fx_io(x).innerF();
 		});
 	}
 	constructor(f){ this.innerF = f; }
