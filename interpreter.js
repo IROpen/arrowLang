@@ -12,7 +12,6 @@ itp = {
     keywords : new Map([]),
     grammarRule: ['start -> root','root -> base'],
 	ruleFuncs : [],
-	workDir : __dirname,
 	registerRule : function (pat,customrule) {
 		pat = pat.split(/\s/g);
 		this.grammarRule.push("root -> r"+this.ruleFuncs.length);
@@ -232,10 +231,8 @@ itp = {
 		else{
 			if (line.match(/^\s*=>/) != null){
 				let makan = line.split(' ').filter(x=>x!='' && x!='=>')[0];
-				if (makan[0] === '.'){
-					makan = path.join(this.workDir,makan);
-				}
-				let lib = require(makan);
+				
+				let lib = this.importer(makan);
 				cmd = ` { let lib = require("${makan}"); \n`;
 				lib.arrow.pat.forEach((x,i)=>{
 					if (lib.arrow.typ[i] == "inline"){
