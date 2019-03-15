@@ -33,7 +33,7 @@ let program = require('yargs')
 
 //console.log(program);
 
-let scriptFile = program._[0];
+let scriptFile = ""+program._[0];
 
 function runAtMe(file){
     //console.log(file);
@@ -49,7 +49,9 @@ async function main(){
         if (scriptFile.substr(-4) !== '.far'){
             scriptFile += '.far';
         }
-        itp.workDir = path.dirname(path.resolve(scriptFile));
+        let wd = path.dirname(path.resolve(scriptFile));
+        await writeFile(path.join(wd,'__arrow_requirer.js'),'module.exports = require;');
+        itp.importer = require(path.join(wd,'__arrow_requirer.js'));
         let data = await readFile(scriptFile);
         //console.log(data.toString());
         let spliter = (s) => {
