@@ -5,6 +5,7 @@ const itp = require('../interpreter');
 const { promisify } = require('util');
 const readFile = promisify(require('fs').readFile);
 const writeFile = promisify(require('fs').writeFile);
+const unlink = promisify(require('fs').unlink);
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -19,7 +20,7 @@ process.on('unhandledRejection', up => { throw up });
 
 let program = require('yargs')
     .scriptName("arrowlang")
-    .usage('$0 <file> [Options]')
+    .usage('$0 [Options] <file>')
     .alias('r','run')
     .describe('run the program')
     .option('env-path', {
@@ -62,7 +63,7 @@ async function main(){
             s.forEach((element,i) => {
                 if (element === '(' ) depth++;
                 if (element === ')' ) depth--;
-                if (depth === 0 && element === '.' && s[i+1] !== '/'){
+                if (depth === 0 && element === '.' && s[i+1] !== '/' && s[i+1] !== '.' && s[i-1] !== '.'){
                     ar.push(t);
                     t = "";
                 }
@@ -90,6 +91,7 @@ async function main(){
         scriptFile = scriptFile.substring(0,scriptFile.length - 3);
         scriptFile+="js";
         await writeFile(scriptFile,outputFile);
+        await unlink(path.join(wd,'__arrow_requirer.js'));
         if (program.run) runAtMe(scriptFile);
     }
 }

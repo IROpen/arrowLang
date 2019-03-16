@@ -5,19 +5,41 @@ itp = {
     keywords : new Map([]),
     grammarRule: ['start -> root','root -> base'],
 	ruleFuncs : [],
+	grammarInnerVar : [],
 	registerRule : function (pat,customrule) {
+		let patParser = pat => {
+			pat = pat.filter(x => x !== '');
+			pat = pat.map((x)=>{
+				if (x==='%'){
+					return "root";
+				}
+				if (x[0] === '%'){
+					return x;
+				}
+				if (!this.keywords.has(x)){
+					let nam = "k"+this.keywords.size;
+					this.keywords.set(x,nam);
+				}
+				return this.keywords.get(x);
+			});
+			st = [];
+			pat.forEach((x)=>{
+				if (x === '%COMBINE'){
+					let b = st.pop();
+					let a = st.pop();
+					let vn = 'giv'+this.grammarInnerVar.length;
+					this.grammarRule.push(`${vn} -> ${a} ${b} ${vn} | ${a}`);
+					st.push(vn);
+				}
+				else{
+					st.push(x);
+				}
+			});
+			return st.join(' ');
+		};
 		pat = pat.split(/\s/g);
 		this.grammarRule.push("root -> r"+this.ruleFuncs.length);
-		this.grammarRule.push("r"+this.ruleFuncs.length+" -> " + pat.map((x)=>{
-		    if (x[0]==='%'){
-		        return "root";
-            }
-		    if (!this.keywords.has(x)){
-		        let nam = "k"+this.keywords.size;
-		        this.keywords.set(x,nam);
-            }
-		    return this.keywords.get(x);
-        }).join(' '));
+		this.grammarRule.push("r"+this.ruleFuncs.length+" -> " + patParser(pat));
 		let key = pat.find((x) => x != '%');
 		let ar = this.rules.get(key);
 		if (!ar){
@@ -81,7 +103,7 @@ itp = {
 			if (/^r[0-9]+$/.test(tree.root)){
 				return rf[tree.root.substr(1)](childs);
 			}
-			return childs.join(' ');
+			return childs.join(',');
 		};
 		for (let i=0;i<qu.length;i++){
 			if (shouldPlain){
@@ -174,7 +196,7 @@ itp = {
         };
 		let text = qu.map(tokener);
 		let chart = EP.parse(text, grammar, "start");
-        let trees = chart.getFinishedRoot("start").traverse();
+		let trees = chart.getFinishedRoot("start").traverse();
         let attachToTree = function f(tree) {
         	tree.subtrees.forEach(f);
         	if (tree.left+1 === tree.right){
@@ -191,18 +213,25 @@ itp = {
 		let cmd;
 		if (line.match(' :=> ') !== null){
 			let asn = line.split(' :=> ');
-			let pat = asn[0].split(/\s/g).filter(x=>x!=='');
-			let varCount = 0;
-			pat.forEach(x=>{
-				if (x[0]=='%'){
-					itp.dict.set(x,'v'+varCount);
-					varCount++;
-				}
-			});
-			pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
-			cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
-			let nam = itp.registerRule(pat);
-			cmd += `${nam} = (${(new Array(varCount)).fill().map((x,i)=>'v'+i).join(',')}) => ${itp.parse(asn[1])};`;
+			if (asn[0].match(/^\s%%%/g) != null){
+				asn[0] = asn[0].split('%%%')[1];
+				cmd = this.jsRule(asn[0],this.parse(asn[1]));
+			}
+			else{
+				let pat = asn[0].split(/\s/g).filter(x=>x!=='');
+				let varCount = 0;
+				pat.forEach(x=>{
+					if (x[0]=='%'){
+						itp.dict.set(x,'v'+varCount);
+						varCount++;
+					}
+				});
+				pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
+				cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
+				let nam = itp.registerRule(pat);
+				cmd += `${nam} = (${(new Array(varCount)).fill().map((x,i)=>'v'+i).join(',')}) => ${itp.parse(asn[1])};`;
+			
+			}
 		}
 		else if (line.match(' #=> ') !== null){
 			let asn = line.split(' #=> ');

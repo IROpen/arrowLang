@@ -1,5 +1,5 @@
 
-            const { enviroment , IoMonad , eventSystem } = require('arrowlang/std/env');
+            const { enviroment , IoMonad , eventSystem } = require('./env');
             module.exports.arrow = {f:[],pat:[],typ:[]};
             var f = module.exports.arrow.f;
             var pat = module.exports.arrow.pat;
@@ -17,7 +17,7 @@ f[2] = "((v0) .bind (v1))";
  } 
 pat[3] = "% را چاپ کن";
 typ[3] = "inline";
-f[3] = "(new IoMonad(()=>console.log ( (v0) )))";
+f[3] = "(new IoMonad(()=>console.log ( String (v0) )))";
 pat[4] = "جمع % با %";
 typ[4] = "inline";
 f[4] = "((v0) + (v1))";
@@ -42,12 +42,8 @@ f[10] = "((v0) < (v1))";
 pat[11] = "% سپس %";
 typ[11] = "inline";
 f[11] = "((v0) .then (v1))";
-enviroment((new IoMonad(()=>require('./stdio/main'))));
 pat[12] = "هرگاه % رخ داد %"
 f[12] = (v0,v1) => (new IoMonad(()=>eventSystem.registerEvent(new eventSystem.Event( (v0) , (v1) ) ) ));
-pat[13] = "یک خط ورودی بگیر"
-f[13] = () => (new IoMonad(require('./stdio/main').getLine));
-pat[14] = "برنامه را ببند"
-f[14] = () => (new IoMonad(()=>process.exit(0)));
-enviroment(((f[13]()) .bind (((l0_2) => (new IoMonad(()=>console.log ( (l0_2) )))))));
+pat[13] = "برنامه را ببند"
+f[13] = () => (new IoMonad(()=>process.exit(0)));
 

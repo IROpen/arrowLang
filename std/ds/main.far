@@ -1,0 +1,7 @@
+=> ../main .
+$=> immutable .
+
+[ %a .. %b ] :=> ($ JSM_immutable.Range( ($ %a $) , ($ %b $) +1 ).toList() $) .
+[ ] :=> ($ JSM_immutable.List([]) $) .
+%%% [ % , %COMBINE ] :=> ($ (...args) => JSM_immutable.List(args)  $) .
+[ 1 , 2 , 3 ] .
