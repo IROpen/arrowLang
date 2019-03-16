@@ -1,11 +1,4 @@
-const IMU = require('immutable');
 const EP = require('./earley-parser');
-const path = require('path');
-
-function evalc(x){
-	console.log(x);
-	//eval(x);
-}
 
 itp = {
     rules : new Map([]),
@@ -229,8 +222,12 @@ itp = {
 			cmd += `${nam} = "${txt}";`;
 		}
 		else{
-			if (line.match(/^\s*=>/) != null){
-				let makan = line.split(' ').filter(x=>x!='' && x!='=>')[0];
+			if (line.match(/^\s*\$=>/) != null){
+				let libname = line.split(/\s/g).filter(x=>x!='' && x!='$=>')[0];
+				cmd = `const JSM_${libname} = require('${libname}');`;
+			}
+			else if (line.match(/^\s*=>/) != null){
+				let makan = line.split(/\s/g).filter(x=>x!='' && x!='=>')[0];
 				
 				let lib = this.importer(makan);
 				cmd = ` { let lib = require("${makan}"); \n`;
