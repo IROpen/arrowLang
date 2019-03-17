@@ -21,7 +21,7 @@ f[3] = "(new IoMonad(()=>console.log ( String (v0) )))";
 pat[4] = "جمع % با %";
 typ[4] = "inline";
 f[4] = "((v0) + (v1))";
-pat[5] = "ضرب % با %";
+pat[5] = "ضرب % در %";
 typ[5] = "inline";
 f[5] = "((v0) * (v1))";
 pat[6] = "منفی %";
