@@ -43,7 +43,7 @@ pat[11] = "% سپس %";
 typ[11] = "inline";
 f[11] = "((v0) .then (v1))";
 pat[12] = "هرگاه % رخ داد %"
-f[12] = (v0,v1) => (new IoMonad(()=>eventSystem.registerEvent(new eventSystem.Event( (v0) , (v1) ) ) ));
+f[12] = (v0)=>(v1) => (new IoMonad(()=>eventSystem.registerEvent(new eventSystem.Event( (v0) , (v1) ) ) ));
 pat[13] = "برنامه را ببند"
-f[13] = () => (new IoMonad(()=>process.exit(0)));
+f[13] = (new IoMonad(()=>process.exit(0)));
 

@@ -53,7 +53,7 @@ itp = {
 			this.ruleFuncs.push(customrule);
 		}
 		else{
-			this.ruleFuncs.push(ar=>`${nam}(${ar.join(',')})`);
+			this.ruleFuncs.push(ar=>""+nam+ar.map(x=>`(${x})`).join(''));
 		}
 		ar.push(obj);
 		return nam;
@@ -229,7 +229,10 @@ itp = {
 				pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
 				cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
 				let nam = itp.registerRule(pat);
-				cmd += `${nam} = (${(new Array(varCount)).fill().map((x,i)=>'v'+i).join(',')}) => ${itp.parse(asn[1])};`;
+				if (varCount == 0)
+					cmd += `${nam} = ${itp.parse(asn[1])};`;
+				else
+					cmd += `${nam} = ${(new Array(varCount)).fill().map((x,i)=>'(v'+i+')').join('=>')} => ${itp.parse(asn[1])};`;
 			
 			}
 		}
