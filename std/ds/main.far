@@ -5,3 +5,4 @@ $=> immutable .
 [ ] :=> ($ JSM_immutable.List([]) $) .
 %%% [ % , %COMBINE ] :=> ($ (...args) => JSM_immutable.List(args)  $) .
 %a [ %b ] :=> ($ ($ %a $) .get ($ %b $) $) .
+%%% { %( % : % %) , %COMBINE } :=> ($ (...args) => JSM_immutable.Map(Array(args.length/2).fill().map((_,i)=>[args[2*i],args[2*i+1]])) $) .

@@ -5,8 +5,10 @@ itp = {
     keywords : new Map([]),
     grammarRule: ['start -> root','root -> base'],
 	ruleFuncs : [],
-	grammarInnerVar : [],
+	grammarInnerVar : 0,
+	einValue: [],
 	registerRule : function (pat,customrule) {
+		debugger;
 		let patParser = pat => {
 			pat = pat.filter(x => x !== '');
 			pat = pat.map((x)=>{
@@ -23,18 +25,32 @@ itp = {
 				return this.keywords.get(x);
 			});
 			st = [];
+			//console.log(pat);
 			pat.forEach((x)=>{
 				if (x === '%COMBINE'){
 					let b = st.pop();
 					let a = st.pop();
-					let vn = 'giv'+this.grammarInnerVar.length;
+					let vn = 'giv'+this.grammarInnerVar++;
 					this.grammarRule.push(`${vn} -> ${a} ${b} ${vn} | ${a}`);
+					st.push(vn);
+				}
+				else if (x === '%)'){
+					let vn = 'giv'+this.grammarInnerVar++;
+					let ar = [];
+					let pos = st.length - 1;
+					while (st[pos] !== '%(') pos--;
+					for (let i=pos+1;i<st.length;i++){
+						ar.push(st[i]);
+					}
+					this.grammarRule.push(`${vn} -> ${ar.join(' ')}`);
+					st.length = pos;
 					st.push(vn);
 				}
 				else{
 					st.push(x);
 				}
 			});
+			//console.log(st);
 			return st.join(' ');
 		};
 		pat = pat.split(/\s/g);
@@ -89,7 +105,7 @@ itp = {
 				if (tree.value.task === "tree"){
 					return f(tree.value.value[0]);
 				}
-				if (tree.value.task === "num"){
+				if (tree.value.task === "num" || tree.value.task === "text"){
 					return ""+tree.value.value;
 				}
 				if (tree.value.task === "var"){
@@ -175,6 +191,12 @@ itp = {
 				shouldPlain = 1;
 				st.push(qu[i]);
 			}
+			else if (qu[i].substr(0,3) === 'ein'){
+				st.push({
+					task: "text",
+					value: this.einValue[qu[i].substr(3)]
+				});
+			}
 			else{
 				st.push(qu[i]);
 			}
@@ -210,10 +232,14 @@ itp = {
 		let paterner = txt => x => txt.replace(/v[0-9]+/g,(s)=>x[s.substr(1)])
 		if (/^\s*$/.test(line)) return "";
 		line = stdize(line);
+		line = line.replace(/"[^"]*"/g,(x) =>{
+			this.einValue.push(x);
+			return ` ein${this.einValue.length-1} `;
+		});
 		let cmd;
 		if (line.match(' :=> ') !== null){
 			let asn = line.split(' :=> ');
-			if (asn[0].match(/^\s%%%/g) != null){
+			if (asn[0].match(/^\s*%%%/g) != null){
 				asn[0] = asn[0].split('%%%')[1];
 				cmd = this.jsRule(asn[0],this.parse(asn[1]));
 			}
