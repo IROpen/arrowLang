@@ -1,0 +1,18 @@
+$=> react .
+=> ../ds/main .
+
+%%% < % %( % = % %) %KLEENE /> :=> ($ (a)=>(...b)=>JSM_react.createElement(a,(()=>{let o={};Array(b.length/2).fill().map((_,i)=>o[b[2*i]]=b[2*i+1]);return o})()) $) .
+< %a /> :=> ($ JSM_react.createElement ($ %a $) $) .
+%%% < % %( % = % %) %KLEENE > % %KLEENE </> :=> ($ (a)=>(...b)=>(...c)=>JSM_react.createElement(a,(()=>{let o={};Array(b.length/2).fill().map((_,i)=>o[b[2*i]]=b[2*i+1]);return o})()) $) .
+
+%%% < % > % %KLEENE </> :=> ($ (a)=>(...b)=>JSM_react.createElement(a,{},...b) $) .
+< %a > </> :=> < %a /> .
+%%% < % %( % = % %) %KLEENE > </> :=> ($ (a)=>(...b)=>JSM_react.createElement(a,(()=>{let o={};Array(b.length/2).fill().map((_,i)=>o[b[2*i]]=b[2*i+1]);return o})()) $) .
+
+
+    < "p" "onClick" = 2 "color" = "123" >
+        < "gav" />
+    </>
+ .
+
+[ 1 , 2 ] .

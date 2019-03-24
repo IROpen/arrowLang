@@ -8,7 +8,6 @@ itp = {
 	grammarInnerVar : 0,
 	einValue: [],
 	registerRule : function (pat,customrule) {
-		debugger;
 		let patParser = pat => {
 			pat = pat.filter(x => x !== '');
 			pat = pat.map((x)=>{
@@ -32,6 +31,12 @@ itp = {
 					let a = st.pop();
 					let vn = 'giv'+this.grammarInnerVar++;
 					this.grammarRule.push(`${vn} -> ${a} ${b} ${vn} | ${a}`);
+					st.push(vn);
+				}
+				else if (x === '%KLEENE'){
+					let a = st.pop();
+					let vn = 'giv'+this.grammarInnerVar++;
+					this.grammarRule.push(`${vn} -> ${a} ${vn} | ${a}`);
 					st.push(vn);
 				}
 				else if (x === '%)'){
@@ -83,7 +88,7 @@ itp = {
 	dict : new Map([]),
 
 	parse : function (qu){
-		qu = qu.split(/[ \n]+/g).filter((x)=>x!='');
+		qu = qu.split(/\s+/g).filter((x)=>x!='');
 		let pbaz = [];
 		let st = [];
 		let lambdaStack = [];
@@ -215,10 +220,22 @@ itp = {
                 throw token+" is not defined";
             }
             return this.keywords.get(token);
-        };
+		};
+		let beautier = token => {
+            if (token.task){
+                return '(...)';
+			}
+			return token;
+		};
 		let text = qu.map(tokener);
 		let chart = EP.parse(text, grammar, "start");
-		let trees = chart.getFinishedRoot("start").traverse();
+		let trees = chart.getFinishedRoot("start");
+		if (trees == null){
+			console.log(text);
+			console.log(this.grammarRule);
+			throw `can not parse ${qu.map(beautier).join(' ')} `;
+		}
+		trees = trees.traverse();
         let attachToTree = function f(tree) {
         	tree.subtrees.forEach(f);
         	if (tree.left+1 === tree.right){
@@ -290,6 +307,7 @@ itp = {
 				let lib = this.importer(makan);
 				cmd = ` { let lib = require("${makan}"); \n`;
 				lib.arrow.pat.forEach((x,i)=>{
+					debugger;
 					if (lib.arrow.typ[i] == "inline"){
 						cmd += `pat[${this.ruleFuncs.length}] = "${x}";\n`;
 						cmd += `typ[${this.ruleFuncs.length}] = "inline";\n`;

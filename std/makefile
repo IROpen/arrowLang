@@ -1,6 +1,6 @@
 .PHONY : all clean
 
-objects = main.js farsi.js ds/main.js ds/farsi.js
+objects = main.js farsi.js ds/main.js ds/farsi.js react/main.js
 
 all : $(objects)
 
@@ -15,6 +15,9 @@ ds/main.js : main.js ds/main.far
 
 ds/farsi.js : ds/main.js ds/farsi.far
 	arrowlang --env-path "../env" ds/farsi
+
+react/main.js : react/main.far
+	arrowlang --env-path "../env" react/main
 
 clean :
 	rm $(objects)
