@@ -24,6 +24,7 @@
     "commander": "^2.19.0",
     "immutable": "^4.0.0-rc.12",
     "react": "^16.8.5",
+    "react-dom": "^16.8.5",
     "yargs": "^13.2.2"
   }
 }

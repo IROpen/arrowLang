@@ -1,0 +1,1 @@
+٪آ را در ٪ب رندر کن :=> ($ require('react-dom').render ( ($ ٪آ  $) , document.getElementById ($ ٪ب $) )  $) .
