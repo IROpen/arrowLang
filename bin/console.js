@@ -8,6 +8,8 @@ const writeFile = promisify(require('fs').writeFile);
 const unlink = promisify(require('fs').unlink);
 const { spawn } = require('child_process');
 const path = require('path');
+const readline = require('readline');
+const { enviroment } = require('../std/env');
 
 process.on('unhandledRejection', up => { throw up });
 
@@ -34,11 +36,11 @@ let program = require('yargs')
 
 //console.log(program);
 
-let scriptFile = ""+program._[0];
+let scriptFile = (program._[0]?program._[0]+"":"");
 
 function runAtMe(file){
     //console.log(file);
-    let prog = spawn('node',[file]);
+    let prog = spawn('node',['-e',file]);
     process.stdin.pipe(prog.stdin);
     prog.stdout.pipe(process.stdout);
     prog.on('close',()=>process.exit(0));
@@ -55,45 +57,49 @@ async function main(){
         itp.importer = require(path.join(wd,'__arrow_requirer.js'));
         let data = await readFile(scriptFile);
         //console.log(data.toString());
-        let spliter = (s) => {
-            let ar = [];
-            s = s.split('');
-            let depth = 0;
-            let t = "";
-            s.forEach((element,i) => {
-                if (element === '(' ) depth++;
-                if (element === ')' ) depth--;
-                if (depth === 0 && element === '.' && s[i+1] !== '/' && s[i+1] !== '.' && s[i-1] !== '.'){
-                    ar.push(t);
-                    t = "";
-                }
-                else{
-                    t += element;
-                }
-            });
-            ar.push(t);
-            return ar;
+        itp.urlToData = async (url) => {
+            let pth = path.join(path.dirname(path.resolve(scriptFile)),url)+'.far';
+            let x = await readFile(pth);
+			return { data : stdize(x+"") , id : pth };
         }
-        data = spliter(data.toString());
-        //console.log(data);
-        let outputFile = `
-            const { enviroment , IoMonad , eventSystem } = require('${program.envPath}');
-            module.exports.arrow = {f:[],pat:[],typ:[]};
-            var f = module.exports.arrow.f;
-            var pat = module.exports.arrow.pat;
-            var typ = module.exports.arrow.typ;
-        `;
-        for (let i = 0; i < data.length ; i++){
-        //console.log(data[i]);
-            let res = itp.eval(data[i]);
-            outputFile += res + '\n';
+        itp.urlMerger = (url1,url2) => {
+            url1 = path.dirname(url1);
+            return path.join(url1,url2);
         }
+        let { outputFile } = await itp.parseFile(stdize(data.toString()));
+        outputFile = `var {IoMonad,enviroment} = require("${program["env-path"]}");`+outputFile;
         scriptFile = scriptFile.substring(0,scriptFile.length - 3);
         scriptFile+="js";
-        await writeFile(scriptFile,outputFile);
+        
+        //await writeFile(scriptFile,outputFile);
         await unlink(path.join(wd,'__arrow_requirer.js'));
-        if (program.run) runAtMe(scriptFile);
+        runAtMe(outputFile);
     }
+    else{
+        let wd = path.resolve();
+        await writeFile(path.join(wd,'__arrow_requirer.js'),'module.exports = require;');
+        require = itp.importer = require(path.join(wd,'__arrow_requirer.js'));
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        const while1 = async (input) => {
+            if (program.fingilish){
+                input = f2f.fa2fi(input);
+            }
+            console.log(eval(itp.eval(input)));
+            rl.question('\x1b[36m>>> \x1b[0m',while1);
+        };
+        rl.question('\x1b[36m>>> \x1b[0m',while1);
+    }
+}
+
+function stdize(str){
+	return str.replace(/[٠١٢٣٤٥٦٧٨٩]/g, function(d) {
+		return d.charCodeAt(0) - 1632; // Convert Arabic numbers
+	}).replace(/[۰۱۲۳۴۵۶۷۸۹]/g, function(d) {
+		return d.charCodeAt(0) - 1776; // Convert Persian numbers
+	}).replace(/٪/g,'%');
 }
 
 main();

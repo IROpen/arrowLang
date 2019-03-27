@@ -1,13 +1,22 @@
 const EP = require('./earley-parser');
+const path = require('path');
+const { promisify } = require('util');
+const readFile = promisify(require('fs').readFile);
 
-itp = {
-    rules : new Map([]),
-    keywords : new Map([]),
-    grammarRule: ['start -> root','root -> base'],
-	ruleFuncs : [],
-	grammarInnerVar : 0,
-	einValue: [],
-	registerRule : function (pat,customrule) {
+let paterner = txt => x => txt.replace(/v[0-9]+/g,(s)=>x[s.substr(1)]);
+
+class ArrowInterpreter {
+	constructor(){
+		this.rules = new Map([]);
+		this.keywords = new Map([]);
+		this.grammarRule= ['start -> root','root -> base'];
+		this.ruleFuncs = [];
+		this.grammarInnerVar = 0;
+		this.einValue= [];
+		this.dict = new Map([]);
+		this.myUrl = '.';
+	}
+	registerRule (pat,customrule) {
 		let patParser = pat => {
 			pat = pat.filter(x => x !== '');
 			pat = pat.map((x)=>{
@@ -23,7 +32,7 @@ itp = {
 				}
 				return this.keywords.get(x);
 			});
-			st = [];
+			let st = [];
 			//console.log(pat);
 			pat.forEach((x)=>{
 				if (x === '%COMBINE'){
@@ -78,16 +87,14 @@ itp = {
 		}
 		ar.push(obj);
 		return nam;
-	},
-	jsRule : function (pat,fun,customRule) {
+	}
+	jsRule (pat,fun,customRule) {
 		let cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
 		let nam = this.registerRule(pat,customRule);		
 		cmd += `${nam} = ${fun}`;
 		return cmd;
-	},
-	dict : new Map([]),
-
-	parse : function (qu){
+	}
+	parse (qu){
 		qu = qu.split(/\s+/g).filter((x)=>x!='');
 		let pbaz = [];
 		let st = [];
@@ -208,8 +215,8 @@ itp = {
 		}
 		let mainTree = this.parseInner(st)[0];
 		return treeToJS(mainTree);
-	},
-    parseInner: function (qu) {
+	}
+    parseInner(qu) {
 		let grammar = new EP.Grammar(this.grammarRule);
         grammar.terminalSymbols(token => token);
         let tokener = token => {
@@ -244,57 +251,52 @@ itp = {
 		};
         trees.forEach(attachToTree);
         return trees;
-	},
-	eval: function (line){
-		let paterner = txt => x => txt.replace(/v[0-9]+/g,(s)=>x[s.substr(1)])
+	}
+	eval(line){
 		if (/^\s*$/.test(line)) return "";
-		line = stdize(line);
+		//line = stdize(line);
 		line = line.replace(/"[^"]*"/g,(x) =>{
 			this.einValue.push(x);
 			return ` ein${this.einValue.length-1} `;
 		});
 		let cmd;
-		if (line.match(' :=> ') !== null){
-			let asn = line.split(' :=> ');
+		if (line.match(/\s:=>\s/) !== null){
+			let asn = line.split(/\s:=>\s/);
 			if (asn[0].match(/^\s*%%%/g) != null){
 				asn[0] = asn[0].split('%%%')[1];
-				cmd = this.jsRule(asn[0],this.parse(asn[1]));
+				cmd = { pat : asn[0],text : this.parse(asn[1]) , type: 'declare' };
 			}
 			else{
 				let pat = asn[0].split(/\s/g).filter(x=>x!=='');
 				let varCount = 0;
 				pat.forEach(x=>{
 					if (x[0]=='%'){
-						itp.dict.set(x,'v'+varCount);
+						this.dict.set(x,'v'+varCount);
 						varCount++;
 					}
 				});
 				pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
-				cmd = `pat[${this.ruleFuncs.length}] = "${pat}"\n`;
-				let nam = itp.registerRule(pat);
+				cmd = {pat,type:'declare'};
+				//let nam = this.registerRule(pat);
 				if (varCount == 0)
-					cmd += `${nam} = ${itp.parse(asn[1])};`;
+					cmd.text = ""+this.parse(asn[1]);
 				else
-					cmd += `${nam} = ${(new Array(varCount)).fill().map((x,i)=>'(v'+i+')').join('=>')} => ${itp.parse(asn[1])};`;
-			
+					cmd.text = `${(new Array(varCount)).fill().map((x,i)=>'(v'+i+')').join('=>')} => ${this.parse(asn[1])};`;
 			}
 		}
-		else if (line.match(' #=> ') !== null){
-			let asn = line.split(' #=> ');
+		else if (line.match(/\s#=>\s/) !== null){
+			let asn = line.split(/\s#=>\s/);
 			let pat = asn[0].split(/\s/g).filter(x=>x!=='');
 			let varCount = 0;
 			pat.forEach(x=>{
 				if (x[0]=='%'){
-					itp.dict.set(x,'v'+varCount);
+					this.dict.set(x,'v'+varCount);
 					varCount++;
 				}
 			});
 			pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
-			cmd = `pat[${this.ruleFuncs.length}] = "${pat}";\n`;
-			cmd += `typ[${this.ruleFuncs.length}] = "inline";\n`;
-			let txt = itp.parse(asn[1]);
-			let nam = itp.registerRule(pat,paterner(txt));
-			cmd += `${nam} = "${txt}";`;
+			let text = this.parse(asn[1]);
+			cmd = { pat , type : 'declare-inline' , text};
 		}
 		else{
 			if (line.match(/^\s*\$=>/) != null){
@@ -303,53 +305,179 @@ itp = {
 			}
 			else if (line.match(/^\s*=>/) != null){
 				let makan = line.split(/\s/g).filter(x=>x!='' && x!='=>')[0];
-				
-				let lib = this.importer(makan);
-				cmd = ` { let lib = require("${makan}"); \n`;
-				lib.arrow.pat.forEach((x,i)=>{
-					debugger;
-					if (lib.arrow.typ[i] == "inline"){
-						cmd += `pat[${this.ruleFuncs.length}] = "${x}";\n`;
-						cmd += `typ[${this.ruleFuncs.length}] = "inline";\n`;
-						let nam = itp.registerRule(x,paterner(lib.arrow.f[i]));
-						cmd += `${nam} = "${lib.arrow.f[i]}";\n`;
-					}
-					else
-						cmd += itp.jsRule(x,`lib.arrow.f[${i}]; \n`);
-				});
-				cmd += ' } ';
+				cmd = { type : 'import' , url : makan };
 			}
 			else
-				cmd  = 'enviroment('+itp.parse(line)+');';
+				cmd  = 'enviroment('+this.parse(line)+');';
 		}
 		return cmd;
+	}
+	parseDeclares (data) {
+		let spliter = (s) => {
+			s = s.toString();
+            let ar = [];
+            s = s.split('');
+            let depth = 0;
+            let t = "";
+            s.forEach((element,i) => {
+                if (element === '(' ) depth++;
+                if (element === ')' ) depth--;
+                if (depth === 0 && element === '.' && s[i+1] !== '/' && s[i+1] !== '.' && s[i-1] !== '.'){
+                    ar.push(t);
+                    t = "";
+                }
+                else{
+                    t += element;
+                }
+            });
+            ar.push(t);
+            return ar;
+        }
+        data = spliter(data);
+		//console.log(data);
+		let declares = [];
+        for (let i = 0; i < data.length ; i++){
+			let line = data[i];
+			if (line.match(/\s:=>\s/) !== null){
+				let asn = line.split(/\s:=>\s/);
+				if (asn[0].match(/^\s*%%%/g) != null){
+					let pat = asn[0].split('%%%')[1];
+					declares.push({pat,type : 'declare',nam:declares.length});
+				}
+				else{
+					let pat = asn[0].split(/\s/g).filter(x=>x!=='');
+					let varCount = 0;
+					pat.forEach(x=>{
+						if (x[0]=='%'){
+							this.dict.set(x,'v'+varCount);
+							varCount++;
+						}
+					});
+					pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
+					declares.push({pat,type : 'declare', nam:declares.length});
+				}
+			}
+			else if (line.match(/\s#=>\s/) !== null){
+				let asn = line.split(/\s#=>\s/);
+				let pat = asn[0].split(/\s/g).filter(x=>x!=='');
+				let varCount = 0;
+				pat.forEach(x=>{
+					if (x[0]=='%'){
+						this.dict.set(x,'v'+varCount);
+						varCount++;
+					}
+				});
+				pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
+				let text = this.parse(asn[1]);
+				declares.push({ pat , type : 'declare-inline' , text});
+			}
+		}
+		return { declares };
+	}
+	async parseFile (data,options={}){
+		options.onlySelf = options.onlySelf || false;
+		let spliter = (s) => {
+            let ar = [];
+            s = s.split('');
+            let depth = 0;
+            let t = "";
+            s.forEach((element,i) => {
+                if (element === '(' ) depth++;
+                if (element === ')' ) depth--;
+                if (depth === 0 && element === '.' && s[i+1] !== '/' && s[i+1] !== '.' && s[i-1] !== '.'){
+                    ar.push(t);
+                    t = "";
+                }
+                else{
+                    t += element;
+                }
+            });
+            ar.push(t);
+            return ar;
+        }
+        data = spliter(data);
+		//console.log(data);
+		let imports = [], declares = [];
+        let outputFile = `var f = [];\n`;
+        for (let i = 0; i < data.length ; i++){
+        //console.log(data[i]);
+            let res = this.eval(data[i]);
+            if (typeof res == "string"){
+                outputFile += res + '\n';
+            }
+            else{
+                if (res.type == 'import'){
+					res.url = this.urlMerger(this.myUrl,res.url);
+					imports.push(res.url);
+					let dt = await this.urlToData(res.url);
+					let dc = this.parseDeclares(dt.data);
+					dc.declares.forEach((f,i)=>{
+						if (f.type === 'declare'){
+							this.registerRule(f.pat,
+								(x) => `md["${dt.id}"].f[${i}]${x.map(t=>`(${t})`).join('')}`);	
+						}
+						else{
+							this.registerRule(f.pat,paterner(f.text));
+						}
+					})
+				}
+				else if (res.type == 'declare'){
+					declares.push(res);
+					outputFile += `f[${declares.length-1}] = ${res.text};\n`;
+					this.registerRule(res.pat,(x) => `f[${declares.length-1}]${x.map(t=>`(${t})`).join('')}`);
+				}
+				else if (res.type == 'declare-inline'){
+					declares.push(res);
+					this.registerRule(res.pat,paterner(res.text));
+				}
+            }
+		}
+		if (!options.onlySelf){
+			let depFile = `var md={};\n`;
+			let mark = {};
+			let dfs = async (url) => {
+				let dt = await this.urlToData(url);
+				if (mark[dt.id]) return;
+				mark[dt.id]=true;
+				let arper = new ArrowInterpreter();
+				arper.urlToData = this.urlToData;
+				arper.urlMerger = this.urlMerger;
+				arper.myUrl = url;
+				let rs = await arper.parseFile(dt.data,{onlySelf : true});
+				await Promise.all(rs.imports.map(dfs));
+				depFile += `md["${dt.id}"]=(()=>{${rs.outputFile};return {f};})();\n`;
+			};
+			await Promise.all(imports.map(dfs));
+			outputFile = depFile + outputFile;
+		}
+		return { outputFile , imports , declares };
 	}
 };
 
 
 /*
-itp.jsRule('jam % ba %',(x,y)=>x+y);
-itp.jsRule('zarb % dar %',(x,y)=>x*y);
-itp.jsRule('manfi %',x=>-x);
-itp.jsRule('agar % dorost bood % vagarna %',(x,y,z)=>(x?y:z),x=>`(${x[0]}?${x[1]}:${x[2]})`);
-itp.jsRule('% ra chap kon',(x)=>new IoMonad(()=>console.log(""+x)));
-itp.jsRule('% sepas %',(x,y) => x.then(y));
-itp.jsRule('barabarie % ba %',(x,y)=>(x===y));
-itp.jsRule('% |> %',(x,y)=>(to_func(y)(x)));
-itp.jsRule('[ % .. % ]',(a,b) => IMU.Range(a,b+1).toList());
-itp.jsRule('tabdil list % ba tabe %',(x,f) => x.map(to_func(f)));
-itp.jsRule('tajmie list % ba tabe %',(x,f) => x.reduce((a,b)=>to_func(to_func(f)(a))(b)));
-itp.jsRule('% [ % ]',(x,y)=>x.get(y));
-itp.jsRule('% [ % ]:= %',(x,y,z)=>x.set(y,z));
-itp.jsRule('tajmie list % ba tabe % ba paye %',(a,f,p)=>{
+this.jsRule('jam % ba %',(x,y)=>x+y);
+this.jsRule('zarb % dar %',(x,y)=>x*y);
+this.jsRule('manfi %',x=>-x);
+this.jsRule('agar % dorost bood % vagarna %',(x,y,z)=>(x?y:z),x=>`(${x[0]}?${x[1]}:${x[2]})`);
+this.jsRule('% ra chap kon',(x)=>new IoMonad(()=>console.log(""+x)));
+this.jsRule('% sepas %',(x,y) => x.then(y));
+this.jsRule('barabarie % ba %',(x,y)=>(x===y));
+this.jsRule('% |> %',(x,y)=>(to_func(y)(x)));
+this.jsRule('[ % .. % ]',(a,b) => IMU.Range(a,b+1).toList());
+this.jsRule('tabdil list % ba tabe %',(x,f) => x.map(to_func(f)));
+this.jsRule('tajmie list % ba tabe %',(x,f) => x.reduce((a,b)=>to_func(to_func(f)(a))(b)));
+this.jsRule('% [ % ]',(x,y)=>x.get(y));
+this.jsRule('% [ % ]:= %',(x,y,z)=>x.set(y,z));
+this.jsRule('tajmie list % ba tabe % ba paye %',(a,f,p)=>{
 	a.forEach((x)=>{ p=f(p)(x) });
 	return p;
 });
-itp.jsRule('% :: %::',(x,y)=>x.push(y));
+this.jsRule('% :: %::',(x,y)=>x.push(y));
 
-itp.jsRule('{ % : % }',(x,y)=>IMU.Map().set(x,y));
+this.jsRule('{ % : % }',(x,y)=>IMU.Map().set(x,y));
 
-itp.jsRule('tarkib % ba %',(x,y)=>{
+this.jsRule('tarkib % ba %',(x,y)=>{
 	if (x instanceof IMU.Map === y instanceof IMU.Map){
 		return x.merge(y);
 	}
@@ -363,12 +491,6 @@ itp.jsRule('tarkib % ba %',(x,y)=>{
 //jad b :=> tajmie list [ 0 .. 4 ] ba tabe ( %jad %x => %jad [ %x ] [ %x ]:= 0 ) ba paye jad a
 
 
-function stdize(str){
-	return str.replace(/[٠١٢٣٤٥٦٧٨٩]/g, function(d) {
-		return d.charCodeAt(0) - 1632; // Convert Arabic numbers
-	}).replace(/[۰۱۲۳۴۵۶۷۸۹]/g, function(d) {
-		return d.charCodeAt(0) - 1776; // Convert Persian numbers
-	}).replace(/٪/g,'%');
-}
 
-module.exports = itp;
+
+module.exports = new ArrowInterpreter();
