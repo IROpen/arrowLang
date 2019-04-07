@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const itp = require('../interpreter');
+const { ArrowCompiler , ArrowInterpreter } = require('../interpreter');
 //const program = require('commander');
 const { promisify } = require('util');
 const readFile = promisify(require('fs').readFile);
@@ -9,7 +9,8 @@ const unlink = promisify(require('fs').unlink);
 const { spawn } = require('child_process');
 const path = require('path');
 const readline = require('readline');
-const { enviroment } = require('../std/env');
+const { enviroment , IoMonad } = require('../std/env');
+const f = [],md = {};
 
 process.on('unhandledRejection', up => { throw up });
 
@@ -49,6 +50,7 @@ function runAtMe(file){
 
 async function main(){
     if (scriptFile !== ""){
+        let itp = new ArrowCompiler();
         if (scriptFile.substr(-4) !== '.far'){
             scriptFile += '.far';
         }
@@ -76,18 +78,26 @@ async function main(){
         runAtMe(outputFile);
     }
     else{
-        let wd = path.resolve();
-        await writeFile(path.join(wd,'__arrow_requirer.js'),'module.exports = require;');
-        require = itp.importer = require(path.join(wd,'__arrow_requirer.js'));
+        let itp = new ArrowInterpreter();
+        itp.urlToData = async (url) => {
+            let pth = path.join(path.resolve(),url)+'.far';
+            let x = await readFile(pth);
+			return { data : stdize(x+"") , id : pth };
+        }
+        itp.urlMerger = (url1,url2) => {
+            url1 = path.dirname(url1);
+            return path.join(url1,url2);
+        }
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout
         });
         const while1 = async (input) => {
+            input = stdize(input);
             if (program.fingilish){
                 input = f2f.fa2fi(input);
             }
-            console.log(eval(itp.eval(input)));
+            eval(await itp.parseCmd(input));
             rl.question('\x1b[36m>>> \x1b[0m',while1);
         };
         rl.question('\x1b[36m>>> \x1b[0m',while1);

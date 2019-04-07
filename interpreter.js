@@ -5,7 +5,7 @@ const readFile = promisify(require('fs').readFile);
 
 let paterner = txt => x => txt.replace(/v[0-9]+/g,(s)=>x[s.substr(1)]);
 
-class ArrowInterpreter {
+class ArrowCompiler {
 	constructor(){
 		this.rules = new Map([]);
 		this.keywords = new Map([]);
@@ -439,21 +439,79 @@ class ArrowInterpreter {
 				let dt = await this.urlToData(url);
 				if (mark[dt.id]) return;
 				mark[dt.id]=true;
-				let arper = new ArrowInterpreter();
+				let arper = new ArrowCompiler();
 				arper.urlToData = this.urlToData;
 				arper.urlMerger = this.urlMerger;
 				arper.myUrl = url;
 				let rs = await arper.parseFile(dt.data,{onlySelf : true});
-				await Promise.all(rs.imports.map(dfs));
+				for ( let x of rs.imports ){
+					await dfs(x);
+				}
 				depFile += `md["${dt.id}"]=(()=>{${rs.outputFile};return {f};})();\n`;
 			};
-			await Promise.all(imports.map(dfs));
+			for (let x of imports){
+				await dfs(x);
+			}
 			outputFile = depFile + outputFile;
 		}
 		return { outputFile , imports , declares };
 	}
 };
 
+class ArrowInterpreter extends ArrowCompiler{
+	constructor(){
+		super();
+		this.markedModules = {};
+		this.dct = 0;
+	}
+	async parseCmd(data){
+		let res = this.eval(data);
+		if (typeof res == "string"){
+			return res;
+		}
+		else if (res.type == 'import'){
+			res.url = this.urlMerger(this.myUrl,res.url);
+			let dt = await this.urlToData(res.url);
+			let dc = this.parseDeclares(dt.data);
+			dc.declares.forEach((f,i)=>{
+				if (f.type === 'declare'){
+					this.registerRule(f.pat,
+						(x) => `md["${dt.id}"].f[${i}]${x.map(t=>`(${t})`).join('')}`);	
+				}
+				else{
+					this.registerRule(f.pat,paterner(f.text));
+				}
+			});
+			let depFile = "";
+			let mark = this.markedModules;
+			let dfs = async (url) => {
+				let dt = await this.urlToData(url);
+				if (mark[dt.id]) return;
+				mark[dt.id]=true;
+				let arper = new ArrowCompiler();
+				arper.urlToData = this.urlToData;
+				arper.urlMerger = this.urlMerger;
+				arper.myUrl = url;
+				let rs = await arper.parseFile(dt.data,{onlySelf : true});
+				for ( let x of rs.imports ){
+					await dfs(x);
+				}
+				depFile += `md["${dt.id}"]=(()=>{${rs.outputFile};return {f};})();\n`;
+			};
+			await dfs(res.url);
+			return depFile;
+		}
+		else if (res.type == 'declare'){
+			this.dct++;
+			this.registerRule(res.pat,(x) => `f[${this.dct-1}]${x.map(t=>`(${t})`).join('')}`);
+			return `f[${this.dct-1}] = ${res.text};\n`;
+		}
+		else if (res.type == 'declare-inline'){
+			this.registerRule(res.pat,paterner(res.text));
+			return "";
+		}
+	}
+}
 
 /*
 this.jsRule('jam % ba %',(x,y)=>x+y);
@@ -493,4 +551,4 @@ this.jsRule('tarkib % ba %',(x,y)=>{
 
 
 
-module.exports = new ArrowInterpreter();
+module.exports = { ArrowCompiler , ArrowInterpreter };
