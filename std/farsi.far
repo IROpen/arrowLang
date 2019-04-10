@@ -1,5 +1,5 @@
 => ./main .
-%آ را چاپ کن #=> ($ new IoMonad(()=>console.log ( String ($ %آ $) )) $) .
+%آ را چاپ کن #=> ($ E.simpleIoMonad(()=>console.log ( String ($ %آ $) )) $) .
 جمع ٪آ با ٪ب #=> ($ ($ ٪آ $) + ($ ٪ب $) $) .
 ضرب ٪آ در ٪ب #=> ($ ($ ٪آ $) * ($ ٪ب $) $) .
 منفی ٪آ #=> ($ - ($ ٪آ $) $) .
@@ -8,5 +8,18 @@
 بزرگتری ٪آ از ٪ب #=> ($ ($ ٪آ $) > ($ ٪ب $) $) .
 کوچکتری ٪آ از ٪ب #=> ($ ($ ٪آ $) < ($ ٪ب $) $) .
 ٪آ سپس ٪ب #=> ($ ($ ٪آ $) .then ($ ٪ب $) $) .
-هرگاه ٪آ رخ داد ٪ب :=> ($ new IoMonad(()=>eventSystem.registerEvent(new eventSystem.Event( ($ %آ $) , ($ ٪ب $) ) ) ) $) .
-برنامه را ببند :=> ($ new IoMonad(()=>process.exit(0)) $) . 
+برنامه را ببند :=> ($ E.simpleIoMonad(()=>process.exit(0)) $) . 
+٪آ صبر کن :=> ($ 
+	new E.IoMonad((ct)=>{
+		let ms = ($ %آ $) ;
+		if (ct.isCancel) throw "IO aborted";
+		return new Promise((res,rej)=>{
+			let timerId = setTimeout(res,ms);
+			ct.onCancel = ()=>{
+				clearTimeout(timerId);
+				rej("IO aborted");
+			};
+		});
+	})
+$) .
+تا ابد ٪آ را انجام بده :=> ٪آ !> ( ٪ب => تا ابد ٪آ را انجام بده ) .

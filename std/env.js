@@ -4,20 +4,63 @@ exports.enviroment = (o) => {
 };
 
 exports.IoMonad = class {
-	run(){
-		this.innerF();
+	async run(ct){
+		if (ct === undefined){
+			ct = {
+				isCancel : false,
+				onCancel : ()=>{},
+			};
+		}
+		try{
+			return await this.innerF(ct);
+		} catch(e){
+			if (e === "IO aborted"){
+				return "IO aborted";
+			}
+			else{
+				throw e;
+			}
+		}
 	}
 	then(io){
-		return new exports.IoMonad(async ()=>{await this.innerF();return await io.innerF(); } );
+		return new exports.IoMonad(async (ct)=>{await this.innerF(ct);return io.innerF(ct); } );
 	}
 	bind(fx_io){
-		return new exports.IoMonad(async ()=>{
-			let x = await this.innerF();
-			return await fx_io(x).innerF();
+		return new exports.IoMonad(async (ct)=>{
+			let x = await this.innerF(ct);
+			return fx_io(x).innerF(ct);
 		});
 	}
 	constructor(f){ this.innerF = f; }
 }
+
+exports.parallelMonad = function(...works){
+	return new exports.IoMonad((ct)=>{
+		if (ct.isCancel) throw "IO aborted";
+		let cts = works.map(()=>{
+			return new exports.IoController();
+		});
+		//TODO: handle on cancel correctly
+		return Promise.all(works.map((w,i)=>w.innerF(cts[i])));
+	});
+}
+
+exports.simpleIoMonad = function (f){
+	return new exports.IoMonad(async (ct)=>{
+		if (ct.isCancel) throw "IO aborted";
+		return f();
+	});
+}
+
+exports.IoController = function (){
+	this.isCancel = false;
+	this.cancel = () => {
+		this.isCancel = true;
+		if (this.onCancel)
+			this.onCancel();
+	}
+}
+
 
 exports.eventSystem = {
 	eventList : [],

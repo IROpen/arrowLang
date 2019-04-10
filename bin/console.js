@@ -9,7 +9,7 @@ const unlink = promisify(require('fs').unlink);
 const { spawn } = require('child_process');
 const path = require('path');
 const readline = require('readline');
-const { enviroment , IoMonad } = require('../std/env');
+const E = require('../std/env');
 const f = [],md = {};
 
 process.on('unhandledRejection', up => { throw up });
@@ -24,8 +24,8 @@ process.on('unhandledRejection', up => { throw up });
 let program = require('yargs')
     .scriptName("arrowlang")
     .usage('$0 [Options] <file>')
-    .alias('r','run')
-    .describe('run the program')
+    .alias('c','compile')
+    .describe('compile program to JS')
     .option('env-path', {
         demandOption: true,
         default: "arrowlang/std/env",
@@ -34,8 +34,6 @@ let program = require('yargs')
     })
     .help()
     .argv;
-
-//console.log(program);
 
 let scriptFile = (program._[0]?program._[0]+"":"");
 
@@ -69,13 +67,18 @@ async function main(){
             return path.join(url1,url2);
         }
         let { outputFile } = await itp.parseFile(stdize(data.toString()));
-        outputFile = `var {IoMonad,enviroment} = require("${program["env-path"]}");`+outputFile;
+        outputFile = `const E = require("${program["env-path"]}");`+outputFile;
         scriptFile = scriptFile.substring(0,scriptFile.length - 3);
         scriptFile+="js";
-        
+        //console.log(outputFile);
         //await writeFile(scriptFile,outputFile);
         await unlink(path.join(wd,'__arrow_requirer.js'));
-        runAtMe(outputFile);
+        if (program.compile){
+            console.log(outputFile);
+        }
+        else{
+            runAtMe(outputFile);
+        }
     }
     else{
         let itp = new ArrowInterpreter();
@@ -97,7 +100,11 @@ async function main(){
             if (program.fingilish){
                 input = f2f.fa2fi(input);
             }
-            eval(await itp.parseCmd(input));
+            let jsCmd = await itp.parseCmd(input); 
+            if (program.compile) 
+                console.log(jsCmd);
+            else
+                eval(jsCmd);
             rl.question('\x1b[36m>>> \x1b[0m',while1);
         };
         rl.question('\x1b[36m>>> \x1b[0m',while1);

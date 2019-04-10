@@ -95,6 +95,7 @@ class ArrowCompiler {
 		return cmd;
 	}
 	parse (qu){
+		debugger;
 		qu = qu.split(/\s+/g).filter((x)=>x!='');
 		let pbaz = [];
 		let st = [];
@@ -264,7 +265,7 @@ class ArrowCompiler {
 			let asn = line.split(/\s:=>\s/);
 			if (asn[0].match(/^\s*%%%/g) != null){
 				asn[0] = asn[0].split('%%%')[1];
-				cmd = { pat : asn[0],text : this.parse(asn[1]) , type: 'declare' };
+				cmd = { pat : asn[0],text : asn[1] , type: 'declare' };
 			}
 			else{
 				let pat = asn[0].split(/\s/g).filter(x=>x!=='');
@@ -276,12 +277,8 @@ class ArrowCompiler {
 					}
 				});
 				pat = pat.map(x=>(x[0]=='%'?'%':x)).join(' ');
-				cmd = {pat,type:'declare'};
+				cmd = {pat,type:'declare',vc:varCount,text:asn[1]};
 				//let nam = this.registerRule(pat);
-				if (varCount == 0)
-					cmd.text = ""+this.parse(asn[1]);
-				else
-					cmd.text = `${(new Array(varCount)).fill().map((x,i)=>'(v'+i+')').join('=>')} => ${this.parse(asn[1])};`;
 			}
 		}
 		else if (line.match(/\s#=>\s/) !== null){
@@ -308,7 +305,7 @@ class ArrowCompiler {
 				cmd = { type : 'import' , url : makan };
 			}
 			else
-				cmd  = 'enviroment('+this.parse(line)+');';
+				cmd  = 'E.enviroment('+this.parse(line)+');';
 		}
 		return cmd;
 	}
@@ -423,8 +420,12 @@ class ArrowCompiler {
 				}
 				else if (res.type == 'declare'){
 					declares.push(res);
-					outputFile += `f[${declares.length-1}] = ${res.text};\n`;
-					this.registerRule(res.pat,(x) => `f[${declares.length-1}]${x.map(t=>`(${t})`).join('')}`);
+					let fname = `f[${declares.length-1}]`;
+					this.registerRule(res.pat,(x) => fname + x.map(t=>`(${t})`).join(''));
+					res.text = ((res.vc === 0 || res.vc == null)
+						? ""+this.parse(res.text)
+						: `${(new Array(res.vc)).fill().map((x,i)=>'(v'+i+')').join('=>')} => ${this.parse(res.text)};` );
+					outputFile += `${fname} = ${res.text};\n`;
 				}
 				else if (res.type == 'declare-inline'){
 					declares.push(res);
@@ -504,6 +505,9 @@ class ArrowInterpreter extends ArrowCompiler{
 		else if (res.type == 'declare'){
 			this.dct++;
 			this.registerRule(res.pat,(x) => `f[${this.dct-1}]${x.map(t=>`(${t})`).join('')}`);
+			res.text = ((res.vc == 0)
+				? ""+this.parse(res.text)
+				: `${(new Array(res.vc)).fill().map((x,i)=>'(v'+i+')').join('=>')} => ${this.parse(res.text)};` );	
 			return `f[${this.dct-1}] = ${res.text};\n`;
 		}
 		else if (res.type == 'declare-inline'){

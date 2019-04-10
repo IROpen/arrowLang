@@ -1,8 +1,15 @@
 => ../main .
-$=> immutable .
 
-[ %a .. %b ] :=> ($ JSM_immutable.Range( ($ %a $) , ($ %b $) +1 ).toList() $) .
-[ ] :=> ($ JSM_immutable.List([]) $) .
-%%% [ % , %COMBINE ] :=> ($ (...args) => JSM_immutable.List(args)  $) .
-%a [ %b ] :=> ($ ($ %a $) .get ($ %b $) $) .
-%%% { %( % : % %) , %COMBINE } :=> ($ (...args) => JSM_immutable.Map(Array(args.length/2).fill().map((_,i)=>[args[2*i],args[2*i+1]])) $) .
+[ %a .. %b ] :=> ($ Array( ($ %b $) - ($ %a $) +1).fill().map((x,i)=>i+ ($ %a $) ) $) .
+[ ] :=> ($ [] $) .
+%%% [ % , %COMBINE ] :=> ($ (...args) => args  $) .
+%a [ %b ] :=> ($ ($ %a $) [ ($ %b $) ] $) .
+%%% { %( % : % %) , %COMBINE } :=> ($ 
+	(...args) => {
+		let obj = {},l = args.length/2;
+		for (let i=0;i<l;i++){
+			obj[args[2*i]]=args[2*i+1]; 
+		}
+		return obj;
+	}
+$) .
